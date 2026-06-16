@@ -2,11 +2,11 @@
 
 
 
-KI-Projekt mit A\*-Algorithmus.
+KI-Projekt mit A\*-Algorithmus  (A Strernchen :))))
 
 
 
-\## Funktionen
+Funktionen
 
 
 
@@ -22,7 +22,7 @@ KI-Projekt mit A\*-Algorithmus.
 
 
 
-\## Steuerung
+Steuerung
 
 
 
