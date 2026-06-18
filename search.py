@@ -1,96 +1,95 @@
-import heapq
+import heapq  # مكتبة جاهزة لعمل Priority Queue، وهي مهمة لأن A* يحتاج دائماً اختيار أقل كلفة أولاً.
 
 
 # ==========================================================
-# Heuristik-Funktion
+# دالة التقدير Heuristic
 # ==========================================================
 def heuristik(a, b):
     """
-    Berechnet die Manhattan-Distanz zwischen zwei Positionen.
+    تحسب مسافة Manhattan بين نقطتين داخل شبكة مربعة.
 
-    Beispiel:
+    اخترنا Manhattan لأن الحركة في اللعبة تكون باتجاهات أربعة فقط:
+    فوق، تحت، يسار، يمين.
+    لذلك لا توجد حركة قطرية، وهذه المعادلة تعطي تقديراً مناسباً لخوارزمية A*.
+
+    مثال:
     a = (0, 0)
     b = (2, 3)
 
-    Ergebnis:
+    النتيجة:
     |0 - 2| + |0 - 3| = 5
     """
+    # a[0] و b[0] يمثلان رقم السطر، و a[1] و b[1] يمثلان رقم العمود.
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
 # ==========================================================
-# A*-Algorithmus
+# خوارزمية A*
 # ==========================================================
 def finde_weg(start, ziel, hindernisse, zeilen, spalten, blockierte_felder=None):
     """
-    Findet mit dem A*-Algorithmus den kürzesten Weg von Start zu Ziel.
+    تبحث عن أقصر طريق من نقطة البداية إلى نقطة الهدف باستخدام خوارزمية A*.
 
-    Parameter:
-    ----------
-    start : tuple
-        Startposition, z. B. (0, 0)
+    start:
+        مكان البداية، مثل (0, 0).
 
-    ziel : tuple
-        Zielposition, z. B. (4, 4)
+    ziel:
+        مكان الهدف، مثل (4, 4).
 
-    hindernisse : list
-        Liste von Hindernissen, die nicht betreten werden dürfen
+    hindernisse:
+        قائمة الصخور أو العوائق التي لا يسمح للحارس/الأرنب بالمرور عليها.
 
-    zeilen : int
-        Anzahl der Zeilen im Spielfeld
+    zeilen:
+        عدد صفوف الشبكة.
 
-    spalten : int
-        Anzahl der Spalten im Spielfeld
+    spalten:
+        عدد أعمدة الشبكة.
 
-    blockierte_felder : list oder set, optional
-        Weitere gesperrte Felder, z. B. Positionen anderer Hasen
+    blockierte_felder:
+        حقول إضافية ممنوعة، مثل أماكن الأرانب الأخرى حتى لا يصطدم بها الأرنب الحالي.
 
-    Rückgabe:
-    ---------
-    list
-        Liste von Positionen, die den Pfad darstellen
-
-    None
-        Falls kein Pfad gefunden wird
+    ترجع:
+        قائمة مواقع تمثل الطريق من البداية إلى الهدف.
+        أو None إذا لم يوجد طريق ممكن.
     """
 
-    # Falls keine zusätzlichen blockierten Felder übergeben wurden
+    # إذا لم يتم تمرير حقول إضافية ممنوعة، نبدأ بمجموعة فارغة.
     if blockierte_felder is None:
         blockierte_felder = set()
     else:
+        # نحولها إلى set لأن البحث داخل set أسرع من البحث داخل list.
         blockierte_felder = set(blockierte_felder)
 
-    # Start und Ziel dürfen nicht blockiert sein
+    # نسمح بالبداية والهدف حتى لو كانا ضمن الحقول المحجوزة بالخطأ.
     blockierte_felder.discard(start)
     blockierte_felder.discard(ziel)
 
-    # Alle gesperrten Felder zusammenfassen
+    # نجمع العوائق الثابتة مع الحقول المحجوزة في مجموعة واحدة لتسهيل الفحص.
     gesperrte_felder = set(hindernisse) | blockierte_felder
 
-    # Prioritätswarteschlange (Open List)
+    # Open List: قائمة الأولويات التي تحتوي العقد التي سنفحصها لاحقاً.
     offene_liste = []
 
-    # Startknoten einfügen
+    # نضيف نقطة البداية، والأولوية هي التقدير المبدئي من البداية إلى الهدف.
     heapq.heappush(
         offene_liste,
         (heuristik(start, ziel), start)
     )
 
-    # Vorgänger jedes Knotens
+    # هذا القاموس يحفظ من أين وصلنا لكل خلية، حتى نعيد بناء الطريق في النهاية.
     came_from = {}
 
-    # Bisherige Kosten vom Start
+    # g_score يخزن الكلفة الحقيقية من البداية إلى كل خلية.
     g_score = {
         start: 0
     }
 
-    # Geschätzte Gesamtkosten
+    # f_score = الكلفة الحقيقية g + التقدير h، وهذا ما يعتمد عليه A* في ترتيب الفحص.
     f_score = {
         start: heuristik(start, ziel)
     }
 
-    # Bewegungsrichtungen:
-    # oben, unten, links, rechts
+    # الاتجاهات الممكنة للحركة: فوق، تحت، يسار، يمين.
     richtungen = [
         (-1, 0),
         (1, 0),
@@ -98,38 +97,35 @@ def finde_weg(start, ziel, hindernisse, zeilen, spalten, blockierte_felder=None)
         (0, 1),
     ]
 
-    # Solange noch Knoten in der Open List sind
+    # نستمر طالما توجد خلايا مرشحة للفحص.
     while offene_liste:
 
-        # Knoten mit kleinsten f-Kosten entnehmen
+        # نأخذ الخلية ذات أقل f_score، لأنها غالباً الأقرب للحل.
         _, aktuell = heapq.heappop(offene_liste)
 
-        # Ziel erreicht
+        # إذا وصلنا للهدف، نبدأ ببناء الطريق النهائي.
         if aktuell == ziel:
             pfad = [aktuell]
 
-            # Pfad rückwärts rekonstruieren
+            # نرجع للخلف من الهدف إلى البداية باستخدام came_from.
             while aktuell in came_from:
                 aktuell = came_from[aktuell]
                 pfad.append(aktuell)
 
-            # Reihenfolge umdrehen (Start -> Ziel)
+            # الطريق بُني من الهدف للبداية، لذلك نعكسه ليصبح من البداية للهدف.
             pfad.reverse()
             return pfad
 
-        # Aktuelle Position
+        # نفصل موقع الخلية الحالية إلى سطر وعمود لتسهيل حساب الجيران.
         zeile, spalte = aktuell
 
-        # Alle Nachbarn untersuchen
+        # نفحص كل جار ممكن حسب الاتجاهات الأربعة.
         for dz, ds in richtungen:
             neue_zeile = zeile + dz
             neue_spalte = spalte + ds
             nachbar = (neue_zeile, neue_spalte)
 
-            # --------------------------------------
-            # 1. Prüfen, ob Nachbar innerhalb
-            #    des Spielfelds liegt
-            # --------------------------------------
+            # نتأكد أن الجار داخل حدود الشبكة، وليس خارج اللوحة.
             if not (
                 0 <= neue_zeile < zeilen
                 and
@@ -137,43 +133,37 @@ def finde_weg(start, ziel, hindernisse, zeilen, spalten, blockierte_felder=None)
             ):
                 continue
 
-            # --------------------------------------
-            # 2. Prüfen, ob Feld blockiert ist
-            # --------------------------------------
+            # نتجاهل الجار إذا كان صخرة أو خلية محجوزة من أرنب آخر.
             if nachbar in gesperrte_felder:
                 continue
 
-            # --------------------------------------
-            # 3. Neue Kosten berechnen
-            # --------------------------------------
+            # كل حركة في الشبكة تكلف خطوة واحدة.
             tentative_g = g_score[aktuell] + 1
 
-            # --------------------------------------
-            # 4. Besserer Weg gefunden?
-            # --------------------------------------
+            # إذا لم نزر الجار من قبل، أو وجدنا طريقاً أقصر إليه، نحدث معلوماته.
             if (
                 nachbar not in g_score
                 or
                 tentative_g < g_score[nachbar]
             ):
-                # Vorgänger speichern
+                # نحفظ أن الخلية الحالية هي السابقة للجار في أفضل طريق معروف.
                 came_from[nachbar] = aktuell
 
-                # Neue Kosten speichern
+                # نحفظ الكلفة الجديدة من البداية إلى هذا الجار.
                 g_score[nachbar] = tentative_g
 
-                # f = g + h
+                # نحسب f = g + h حتى نعرف أولوية فحص هذا الجار.
                 f_score[nachbar] = (
                     tentative_g
                     +
                     heuristik(nachbar, ziel)
                 )
 
-                # In Open List einfügen
+                # نضيف الجار لقائمة الأولويات كي يتم فحصه لاحقاً.
                 heapq.heappush(
                     offene_liste,
                     (f_score[nachbar], nachbar)
                 )
 
-    # Kein Pfad gefunden
+    # إذا انتهت Open List ولم نصل للهدف، فهذا يعني أنه لا يوجد طريق ممكن.
     return None
